@@ -1,13 +1,23 @@
+import os
 import re
+import secrets
 from io import BytesIO
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 from pydantic import BaseModel
 
 app = FastAPI(title="Email to Excel API")
+
+API_KEY = os.environ.get("API_KEY", "")
+
+
+def check_key(x_api_key: str = Header(default="")):
+    """Sirf sahi API key wali request allow karo."""
+    if not API_KEY or not secrets.compare_digest(x_api_key, API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
 ALLOWED_ALIGNMENTS = ("left", "center", "right")
 
@@ -56,7 +66,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/generate-excel")
+@app.post("/generate-excel", dependencies=[Depends(check_key)])
 def generate_excel(p: Payload):
     records = [{clean(k): clean(v) for k, v in r.items()} for r in p.records]
 
